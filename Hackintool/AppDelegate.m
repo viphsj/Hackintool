@@ -978,6 +978,7 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 	[_fbPortLimitComboBox selectItemAtIndex:(_settings.FBPortCount > 0 ? _settings.FBPortCount - 1 : 0)];
 	[_injectDeviceIDButton setState:_settings.InjectDeviceID];
 	[_spoofAudioDeviceIDButton setState:_settings.SpoofAudioDeviceID];
+	[_injectFakeIGPUButton setState:_settings.InjectFakeIGPU];
 	[_usbPortLimitButton setState:_settings.USBPortLimit];
 	[_showInstalledOnlyButton setState:_settings.ShowInstalledOnly];
 	[_lspconEnableDriverButton setState:_settings.LSPCON_Enable];
@@ -1462,20 +1463,20 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 		ioregName = [ioregName substringFromIndex:ioregName.length - min((int)ioregName.length, 15)];
 		ioregIOName = [ioregIOName substringToIndex:min((int)ioregIOName.length, 15)];
 		
-		[outputString appendString:[NSString stringWithFormat:@"%-7s ", [pciDebug UTF8String]]];
-		[outputString appendString:[NSString stringWithFormat:@"%04X ", [vendorID unsignedIntValue]]];
-		[outputString appendString:[NSString stringWithFormat:@"%04X ", [deviceID unsignedIntValue]]];
-		[outputString appendString:[NSString stringWithFormat:@"%04X ", [subVendorID unsignedIntValue]]];
-		[outputString appendString:[NSString stringWithFormat:@"%04X ", [subDeviceID unsignedIntValue]]];
-		[outputString appendString:[NSString stringWithFormat:@"%-6s ", [aspm UTF8String]]];
-		//[outputString appendString:[NSString stringWithFormat:@"%04X ", [aspm unsignedIntValue]]];
-		[outputString appendString:[NSString stringWithFormat:@"%-30s ", [vendorName UTF8String]]];
-		[outputString appendString:[NSString stringWithFormat:@"%-50s ", [deviceName UTF8String]]];
-		[outputString appendString:[NSString stringWithFormat:@"%-20s ", [className UTF8String]]];
-		[outputString appendString:[NSString stringWithFormat:@"%-20s ", [subclassName UTF8String]]];
-		[outputString appendString:[NSString stringWithFormat:@"%15s ", [ioregName UTF8String]]];
-		[outputString appendString:[NSString stringWithFormat:@"%-15s ", [ioregIOName UTF8String]]];
-		[outputString appendString:[NSString stringWithFormat:@"%@ ", devicePath]];
+		[outputString appendFormat:@"%-7s ", [pciDebug UTF8String]];
+		[outputString appendFormat:@"%04X ", [vendorID unsignedIntValue]];
+		[outputString appendFormat:@"%04X ", [deviceID unsignedIntValue]];
+		[outputString appendFormat:@"%04X ", [subVendorID unsignedIntValue]];
+		[outputString appendFormat:@"%04X ", [subDeviceID unsignedIntValue]];
+		[outputString appendFormat:@"%-6s ", [aspm UTF8String]];
+		//[outputString appendFormat:@"%04X ", [aspm unsignedIntValue]];
+		[outputString appendFormat:@"%-30s ", [vendorName UTF8String]];
+		[outputString appendFormat:@"%-50s ", [deviceName UTF8String]];
+		[outputString appendFormat:@"%-20s ", [className UTF8String]];
+		[outputString appendFormat:@"%-20s ", [subclassName UTF8String]];
+		[outputString appendFormat:@"%15s ", [ioregName UTF8String]];
+		[outputString appendFormat:@"%-15s ", [ioregIOName UTF8String]];
+		[outputString appendFormat:@"%@ ", devicePath];
 		[outputString appendString:@"\n"];
 	}
 	
@@ -1555,26 +1556,26 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 - (void)appendDSLString:(uint32_t)tabCount outputString:(NSMutableString *)outputString value:(NSString *)value
 {
 	[self appendTabCount:tabCount outputString:outputString];
-	[outputString appendString:[NSString stringWithFormat:@"%@\n", value]];
+	[outputString appendFormat:@"%@\n", value];
 }
 
 - (void)appendDSLValue:(uint32_t)tabCount outputString:(NSMutableString *)outputString name:(NSString *)name value:(id)value
 {
 	[self appendTabCount:tabCount outputString:outputString];
-	[outputString appendString:[NSString stringWithFormat:@"\"%@\", ", name]];
+	[outputString appendFormat:@"\"%@\", ", name];
 	
-	[outputString appendString:[NSString stringWithFormat:@"Buffer () { "]];
+	[outputString appendFormat:@"Buffer () { "];
 	
 	if ([value isKindOfClass:[NSString class]])
-		[outputString appendString:[NSString stringWithFormat:@"\"%@\" },\n", value]];
+		[outputString appendFormat:@"\"%@\" },\n", value];
 	else if ([value isKindOfClass:[NSData class]])
-		[outputString appendString:[NSString stringWithFormat:@"%@ },\n", getByteString(value)]];
+		[outputString appendFormat:@"%@ },\n", getByteString(value)];
 }
 
 - (void)appendDSLString:(uint32_t)tabCount outputString:(NSMutableString *)outputString name:(NSString *)name value:(NSString *)value
 {
 	[self appendTabCount:tabCount outputString:outputString];
-	[outputString appendString:[NSString stringWithFormat:@"\"%@\", \"%@\" },\n", name, value]];
+	[outputString appendFormat:@"\"%@\", \"%@\" },\n", name, value];
 }
 
 - (bool)hasNVIDIAGPU
@@ -1670,6 +1671,46 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 		ioregName = [ioregName substringToIndex:atRange.location];
 	
 	return ioregName;
+}
+
+- (void)getFakeGPUDeviceDictionary:(NSMutableDictionary **)pciDeviceDictionary
+{
+	*pciDeviceDictionary = [NSMutableDictionary dictionary];
+	
+    [*pciDeviceDictionary setObject:@"Disabled" forKey:@"ASPM"];
+    [*pciDeviceDictionary setObject:@(0x20000) forKey:@"Address"];
+    [*pciDeviceDictionary setObject:@"com.apple.driver.AppleIntelCFLGraphicsFramebuffer" forKey:@"BundleID"];
+    [*pciDeviceDictionary setObject:@(0x30000) forKey:@"ClassCode"];
+    [*pciDeviceDictionary setObject:@"Display controller" forKey:@"ClassName"];
+    [*pciDeviceDictionary setObject:@(0x0000) forKey:@"DeviceID"];
+    [*pciDeviceDictionary setObject:@"Intel Graphics (Unknown)" forKey:@"DeviceName"];
+    [*pciDeviceDictionary setObject:@"PciRoot(0x0)/Pci(0x2,0x0)" forKey:@"DevicePath"];
+    [*pciDeviceDictionary setObject:@"display" forKey:@"IORegIOName"];
+    [*pciDeviceDictionary setObject:@"/PCI0@0/IGPU@2" forKey:@"IORegName"];
+    [*pciDeviceDictionary setObject:@"IOService:/AppleACPIPlatformExpert/PCI0@0/AppleACPIPCI/IGPU@2" forKey:@"IORegPath"];
+    [*pciDeviceDictionary setObject:@"Intel Graphics (Unknown)" forKey:@"Model"];
+    [*pciDeviceDictionary setObject:@"00:02.0" forKey:@"PCIDebug"];
+    [*pciDeviceDictionary setObject:@(0x0000) forKey:@"ShadowDevice"];
+    [*pciDeviceDictionary setObject:@(0x8086) forKey:@"ShadowVendor"];
+    [*pciDeviceDictionary setObject:@"Internal@0,2,0" forKey:@"SlotName"];
+    [*pciDeviceDictionary setObject:@"VGA compatible controller" forKey:@"SubClassName"];
+    [*pciDeviceDictionary setObject:@(0x0000) forKey:@"SubDeviceID"];
+    [*pciDeviceDictionary setObject:@(0x0000) forKey:@"SubVendorID"];
+    [*pciDeviceDictionary setObject:@(0x8086) forKey:@"VendorID"];
+    [*pciDeviceDictionary setObject:@"Intel Corporation" forKey:@"VendorName"];
+}
+
+- (bool)tryGetGPUDeviceDictionary:(NSMutableDictionary **)pciDeviceDictionary
+{
+	if ([self tryGetPCIDeviceDictionaryFromIORegName:@"IGPU" pciDeviceDictionary:pciDeviceDictionary])
+		return true;
+	
+	if (!_settings.InjectFakeIGPU)
+		return false;
+	
+	[self getFakeGPUDeviceDictionary:pciDeviceDictionary];
+	
+	return true;
 }
 
 - (bool)tryGetPCIDeviceDictionaryFromIORegName:(NSString *)name pciDeviceDictionary:(NSMutableDictionary **)pciDeviceDictionary
@@ -1777,7 +1818,7 @@ void authorizationGrantedCallback(AuthorizationRef authorization, OSErr status, 
 - (void)outputArray:(NSMutableString *)outputString title:(NSString *)title array:(NSMutableArray *)array
 {
 	[outputString appendString:@"-----------------------------------------------------------------------\n"];
-	[outputString appendString:[NSString stringWithFormat:@"%@\n", title]];
+	[outputString appendFormat:@"%@\n", title];
 	[outputString appendString:@"-----------------------------------------------------------------------\n"];
 	
 	for (NSDictionary *dictionary in array)
@@ -5173,8 +5214,11 @@ NSInteger usbControllerSort(id a, id b, void *context)
 		if (_macOS_10_13_6_MenuItem.state)
 		{
 			NSBundle *mainBundle = [NSBundle mainBundle];
-
+			
 			_fileName = [mainBundle pathForResource:intelGenString ofType:@"bin" inDirectory:@"Framebuffer/macOS 10.13.6"];
+			
+			if (intelGen > IGCoffeeLake)
+				_fileName = nil;
 		}
 		else if (_macOS_10_14_MenuItem.state)
 		{
@@ -5473,6 +5517,7 @@ NSInteger usbControllerSort(id a, id b, void *context)
 										@(2), @"FBPortCount",
 										@NO, @"InjectDeviceID",
 										@NO, @"SpoofAudioDeviceID",
+										@NO, @"InjectFakeIGPU",
 										@NO, @"USBPortLimit",
 										@NO, @"ApplyCurrentPatches",
 										@(0), @"SelectedAudioDevice",
@@ -5530,6 +5575,7 @@ NSInteger usbControllerSort(id a, id b, void *context)
 	_settings.FBPortCount = (uint32_t)[defaults integerForKey:@"FBPortCount"];
 	_settings.InjectDeviceID = [defaults boolForKey:@"InjectDeviceID"];
 	_settings.SpoofAudioDeviceID = [defaults boolForKey:@"SpoofAudioDeviceID"];
+	_settings.InjectFakeIGPU = [defaults boolForKey:@"InjectFakeIGPU"];
 	_settings.USBPortLimit = [defaults boolForKey:@"USBPortLimit"];
 	_settings.ApplyCurrentPatches = [defaults boolForKey:@"ApplyCurrentPatches"];
 	_settings.ShowInstalledOnly = [defaults boolForKey:@"ShowInstalledOnly"];
@@ -5583,6 +5629,7 @@ NSInteger usbControllerSort(id a, id b, void *context)
 	[defaults setBool:_settings.InjectDeviceID forKey:@"InjectDeviceID"];
 	[defaults setBool:_settings.USBPortLimit forKey:@"USBPortLimit"];
 	[defaults setBool:_settings.SpoofAudioDeviceID forKey:@"SpoofAudioDeviceID"];
+	[defaults setBool:_settings.InjectFakeIGPU forKey:@"InjectFakeIGPU"];
 	[defaults setBool:_settings.ApplyCurrentPatches forKey:@"ApplyCurrentPatches"];
 	[defaults setBool:_settings.ShowInstalledOnly forKey:@"ShowInstalledOnly"];
 	[defaults setBool:_settings.LSPCON_Enable forKey:@"LSPCON_Enable"];
@@ -5762,7 +5809,17 @@ NSInteger usbControllerSort(id a, id b, void *context)
 		if (intelGen == -1 || platformIDIndex == -1)
 			return 0;
 		
-		return (IS_ICELAKE(intelGen) ? 3 : 4);
+		if (intelGen == IGIceLakeLP)
+		{
+			if (_originalFramebufferList == NULL)
+				return 0;
+			
+			FramebufferICLLP &framebufferICLLP = reinterpret_cast<FramebufferICLLP *>(_originalFramebufferList)[platformIDIndex];
+				
+			return framebufferICLLP.fPortCount;
+		}
+		
+		return 4;
 	}
 	else if (tableView == _connectorFlagsTableView)
 	{
@@ -7789,6 +7846,10 @@ NSInteger usbControllerSort(id a, id b, void *context)
 	{
 		_settings.SpoofAudioDeviceID = [_spoofAudioDeviceIDButton state];
 	}
+	else if (sender == _injectFakeIGPUButton)
+	{
+		_settings.InjectFakeIGPU = [_injectFakeIGPUButton state];
+	}
 	else if (sender == _usbPortLimitButton)
 	{
 		_settings.USBPortLimit = [_usbPortLimitButton state];
@@ -8335,7 +8396,7 @@ NSInteger usbControllerSort(id a, id b, void *context)
 	NSMutableDictionary *propertyDictionary = ([self isBootloaderOpenCore] ? [OpenCore getDevicePropertiesDictionaryWith:configDictionary typeName:@"Add"] : [Clover getDevicesPropertiesDictionaryWith:configDictionary]);
 	NSMutableDictionary *pciDeviceDictionary;
 	
-	if (![self tryGetPCIDeviceDictionaryFromIORegName:@"IGPU" pciDeviceDictionary:&pciDeviceDictionary])
+	if (![self tryGetGPUDeviceDictionary:&pciDeviceDictionary])
 		return NO;
 	
 	NSString *devicePath = [pciDeviceDictionary objectForKey:@"DevicePath"];
@@ -9233,10 +9294,10 @@ NSInteger usbControllerSort(id a, id b, void *context)
 		
 		NSMutableString *predicateString = [NSMutableString string];
 		
-		[predicateString appendString:[NSString stringWithFormat:@"process == \"%@\"", [_processLogComboBox stringValue]]];
+		[predicateString appendFormat:@"process == \"%@\"", [_processLogComboBox stringValue]];
 		
 		if (![[_containsLogComboBox stringValue] isEqualToString:@""])
-			[predicateString appendString:[NSString stringWithFormat:@"AND (eventMessage CONTAINS[c] \"%@\")", [_containsLogComboBox stringValue]]];
+			[predicateString appendFormat:@"AND (eventMessage CONTAINS[c] \"%@\")", [_containsLogComboBox stringValue]];
 		
 		[args addObject:predicateString];
 		
@@ -10763,12 +10824,12 @@ NSInteger usbControllerSort(id a, id b, void *context)
 			NSScanner *scanner = [NSScanner scannerWithString:hexValue];
 			[scanner setScanLocation:1];
 			[scanner scanHexInt:&result];
-			[retString appendString:[NSString stringWithFormat:@"%02X", (uint16_t)result]];
+			[retString appendFormat:@"%02X", (uint16_t)result];
 			i += 3;
 		}
 		else
 		{
-			[retString appendString:[NSString stringWithFormat:@"%02X", [value characterAtIndex:i]]];
+			[retString appendFormat:@"%02X", [value characterAtIndex:i]];
 			i++;
 		}
 	}
